@@ -4,7 +4,7 @@ import json
 import re
 
 keys={}
-with open("/Users/jagluck/Documents/GitHub/federalregisterbot/keys.json","r") as f:
+with open("/Users/jagluck/Documents/GitHub/twitter-user-emoji-bot/keys.json","r") as f:
     keys = json.loads(f.read())
     
 # Consumer keys and access tokens, used for OAuth
@@ -50,4 +50,14 @@ def translateText(text):
 
 	print(text)
 
-translateText("scream up down happy ghhghghg sad")
+def getCurrentTweets():
+	tweets = api.user_timeline(screen_name = 'realDonaldTrump', count = 50, include_rts = False)
+	for x in tweets:
+		tweet = x._json
+		text = tweet['text']
+		translated = translateText(text)
+		print(translated)
+		print("---------")
+
+getCurrentTweets()
+#translateText("scream up down happy ghhghghg sad")
