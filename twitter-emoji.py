@@ -8,7 +8,6 @@ import re
 from bs4 import BeautifulSoup
 import nltk
 from nltk.corpus import stopwords
-#nltk.download()
 
 keys={}
 with open("/Users/jagluck/Documents/GitHub/twitter-user-emoji-bot/keys.json","r") as f:
@@ -72,21 +71,50 @@ def updateDatabase(json_data):
 
 
 def translateText(text):
+	text = re.sub(r'https?:\/\/.*[\r\n]*', '', text, flags=re.MULTILINE)
 	words = re.split("\W+",text)
 
 	print(text)
 	new_text = ''
 	for word in words:
-	
-		raw = requests.get("https://emojipedia.org/search/?q=" + word)
-		soup = BeautifulSoup(raw.text, "lxml")
-		result = soup.find("ol", {"class": "search-results"})
+		new_word = ''
+		if word not in stopwords.words('english'):
+			new_word = getTopEmoji(word)
 
-		if (result):
-			results = result.findAll('li')
+		new_text = new_text + new_word
 
-			max = 0
-			new_word = ''
+	return(new_text)
+
+def getTopEmoji(word):
+	raw = requests.get("https://emojipedia.org/search/?q=" + word)
+	soup = BeautifulSoup(raw.text, "lxml")
+	result = soup.find("ol", {"class": "search-results"})
+
+	new_word = ''
+	if (result):
+		results = result.findAll('li')
+
+		max = 0
+
+		emoj = results[0].find('span').text
+		des = results[0].find('p').text
+		if des != "😞 No results found. Perhaps try a less specific search phrase.":
+			new_word = emoj
+		
+	return new_word
+
+def getMatchEmoji(word, text):
+	raw = requests.get("https://emojipedia.org/search/?q=" + word)
+	soup = BeautifulSoup(raw.text, "lxml")
+	result = soup.find("ol", {"class": "search-results"})
+
+	new_word = ''
+	if (result):
+		results = result.findAll('li')
+		des = results[0].find('p').text
+		max = -1
+
+		if des != "😞 No results found. Perhaps try a less specific search phrase.":
 			for res in results:
 				sp = res.find('span')
 				emoj = sp.text
@@ -101,7 +129,6 @@ def translateText(text):
 					des = des.split(" ")
 					des = [word for word in des if word not in stopwords.words('english')]
 					des = ' '.join(des)
-					
 					counter = -1
 					for x in text:
 					    if x in des:
@@ -111,38 +138,39 @@ def translateText(text):
 						max = counter
 						new_word = emoj
 
-
-			new_text = new_text + new_word
-
-	print(new_text)
-	return(new_text)
+	return new_word
 
 def getCurrentTweets():
 	tweets = api.user_timeline(screen_name = 'realDonaldTrump', count = 50, include_rts = False, tweet_mode='extended')
 	
 	found_tweets = []
+	found_links = {}
 
 	for x in tweets:
 		tweet = x._json
 		text = tweet['full_text']
 		found_tweets.append(text)
-
+		link = tweet['id']
+		found_links[text] = link
 	data = {}
 	data['tweets'] = found_tweets
-
+	data['links'] = found_links
 	return(data) 
 
 def runBot():
 	old_tweets = readDatabase()
-	new_tweets = getCurrentTweets()
+	current = getCurrentTweets()
+	new_tweets = current['tweets']
+	links = current['links']
 
-	for new in new_tweets['tweets']:
+	for new in new_tweets:
 		if new not in old_tweets:
 			translated = translateText(new)
-			sendTweet(translateText)
+			tweet_id = links[new]
+			sendTweet(translated + " " + "https://twitter.com/realDonaldTrump/status/" + str(tweet_id))
 
 	json_data = json.dumps(new_tweets)
-	updateDatabase(json_data.encode('utf-8'))
+	#updateDatabase(json_data.encode('utf-8'))
 
 
 runBot()
