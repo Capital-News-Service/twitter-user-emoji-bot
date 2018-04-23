@@ -8,6 +8,8 @@ import re
 from bs4 import BeautifulSoup
 import nltk
 from nltk.corpus import stopwords
+from rake_nltk import Rake
+import math
 
 keys={}
 with open("/Users/jagluck/Documents/GitHub/twitter-user-emoji-bot/keys.json","r") as f:
@@ -76,12 +78,21 @@ def translateText(text):
 
 	print(text)
 	new_text = ''
-	for word in words:
-		new_word = ''
-		if word not in stopwords.words('english'):
-			new_word = getTopEmoji(word)
+	r = Rake()
+	a=r.extract_keywords_from_text(text)
+	b=r.get_ranked_phrases()
+	c=r.get_ranked_phrases_with_scores()
+	l = len(b)
+	ot = math.ceil(l/3)
+	phrases = b[0:ot]
+	for phrase in phrases:
+		words = re.split("\W+",phrase)
+		for word in words:
+			new_word = ''
+			if word not in stopwords.words('english'):
+				new_word = getMatchEmoji(word, text)
 
-		new_text = new_text + new_word
+			new_text = new_text + new_word
 
 	return(new_text)
 
@@ -100,7 +111,7 @@ def getTopEmoji(word):
 		des = results[0].find('p').text
 		if des != "😞 No results found. Perhaps try a less specific search phrase.":
 			new_word = emoj
-		
+			print(word + " " + emoj)	
 	return new_word
 
 def getMatchEmoji(word, text):
@@ -119,6 +130,7 @@ def getMatchEmoji(word, text):
 				sp = res.find('span')
 				emoj = sp.text
 				des = res.find('p').text
+				title = res.find('a').text
 				if des != "😞 No results found. Perhaps try a less specific search phrase.":
 					des = des.replace("…", "")
 					des = des.replace(",", "")
@@ -134,10 +146,14 @@ def getMatchEmoji(word, text):
 					    if x in des:
 					        counter += 1
 
+					if word in title:
+						counter += 5
+
 					if counter > max:
 						max = counter
 						new_word = emoj
 
+			print(word + " " + emoj)
 	return new_word
 
 def getCurrentTweets():
@@ -167,10 +183,12 @@ def runBot():
 		if new not in old_tweets:
 			translated = translateText(new)
 			tweet_id = links[new]
-			sendTweet(translated + " " + "https://twitter.com/realDonaldTrump/status/" + str(tweet_id))
+			#sendTweet(translated + " " + "https://twitter.com/realDonaldTrump/status/" + str(tweet_id))
 
 	json_data = json.dumps(new_tweets)
-	#updateDatabase(json_data.encode('utf-8'))
+	updateDatabase(json_data.encode('utf-8'))
 
 
-runBot()
+#runBot()
+text = "Here’s a great stat - since January 2017, the number of people forced to use food stamps is down 1.9 million. The American people are finally back to work!"
+translateText(text)
